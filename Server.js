@@ -13,17 +13,49 @@ const chatHistory = []; // store chat messages
 
 // Function to add message to history
 function addToHistory(message) {
-    chatHistory.push(message);
-    // Keep only the last 100 messages
-    if (chatHistory.length > 100) {
-        chatHistory.shift();
+    // Only add public messages to history
+    if (message.type !== 'dm') {
+        chatHistory.push(message);
+        // Keep only the last 100 messages
+        if (chatHistory.length > 100) {
+            chatHistory.shift();
+        }
     }
+}
+
+// Function to find socket ID by username
+function findPlayerByUsername(username) {
+    for (const [socketId, player] of Object.entries(players)) {
+        if (player.username.toLowerCase() === username.toLowerCase()) {
+            return { socketId, player };
+        }
+    }
+    return null;
+}
+
+// Function to parse DM command
+function parseDM(message) {
+    // Check for /dm username message or @username message format
+    const dmRegex = /^(?:\/dm\s+|@)(\S+)\s+(.+)$/i;
+    const match = message.match(dmRegex);
+    if (match) {
+        return {
+            targetUsername: match[1],
+            message: match[2]
+        };
+    }
+    return null;
 }
 
 io.on("connection", socket => {
     console.log("Player connected:", socket.id);
 
     socket.on("join", username => {
+        // Check if this socket already has a player
+        if (players[socket.id]) {
+            return;
+        }
+
         // Initialize player with username
         players[socket.id] = {
             x: 100 + Math.random() * 400,
@@ -59,15 +91,80 @@ io.on("connection", socket => {
 
     socket.on("chat", message => {
         if (players[socket.id]) {
-            const chatMessage = {
-                type: "message",
-                username: players[socket.id].username,
-                message: message,
-                color: players[socket.id].color,
-                timestamp: Date.now()
-            };
-            addToHistory(chatMessage);
-            io.emit("chat", chatMessage);
+            const dmData = parseDM(message);
+
+            if (dmData) {
+                // Handle DM
+                const target = findPlayerByUsername(dmData.targetUsername);
+
+                if (target) {
+                    // Create DM message
+                    const dmMessage = {
+                        type: "dm",
+                        username: players[socket.id].username,
+                        message: dmData.message,
+                        color: players[socket.id].color,
+                        timestamp: Date.now(),
+                        isWhisper: true
+                    };
+
+                    // Send to sender and recipient only
+                    socket.emit("chat", {
+                        ...dmMessage,
+                        isDmSent: true,
+                        to: target.player.username
+                    });
+                    io.to(target.socketId).emit("chat", {
+                        ...dmMessage,
+                        isDmReceived: true,
+                        from: players[socket.id].username
+                    });
+
+                    // Show floating message only to recipient
+                    target.player.currentChat = {
+                        message: `[DM] ${dmData.message}`,
+                        timestamp: Date.now()
+                    };
+
+                    // Clear recipient's floating message after 5 seconds
+                    setTimeout(() => {
+                        if (players[target.socketId]) {
+                            players[target.socketId].currentChat = null;
+                        }
+                    }, 5000);
+                } else {
+                    // Notify sender that user wasn't found
+                    socket.emit("chat", {
+                        type: "system",
+                        message: `Player "${dmData.targetUsername}" not found`,
+                        color: "#ff0000",
+                        timestamp: Date.now()
+                    });
+                }
+            } else {
+                // Regular public chat message
+                players[socket.id].currentChat = {
+                    message: message,
+                    timestamp: Date.now()
+                };
+
+                const chatMessage = {
+                    type: "message",
+                    username: players[socket.id].username,
+                    message: message,
+                    color: players[socket.id].color,
+                    timestamp: Date.now()
+                };
+                addToHistory(chatMessage);
+                io.emit("chat", chatMessage);
+
+                // Clear the message after 5 seconds
+                setTimeout(() => {
+                    if (players[socket.id]) {
+                        players[socket.id].currentChat = null;
+                    }
+                }, 5000);
+            }
         }
     });
 
