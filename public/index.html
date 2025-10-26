@@ -9,6 +9,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet" />
 
     <style>
+        /* Theme variables */
+        :root {
+            --bg-gradient-start: #faf6f1;
+            --bg-gradient-end: #f5f0e8;
+            --frame-bg: rgba(252, 248, 242, 0.8);
+            --text-color: #3d3d3d;
+            --title-color: #2f3e29;
+            --chat-bg: rgba(255, 255, 255, 0.9);
+            --chat-input-border: #b5cbb2;
+            --button-bg: #2f3e29;
+            --button-text: white;
+            --canvas-gradient-start: #e3f1e0;
+            --canvas-gradient-end: #cfe3cb;
+            --canvas-border: #b5cbb2;
+            --footer-color: #5e7058;
+        }
+
+        /* Dark theme variables */
+        [data-theme="dark"] {
+            --bg-gradient-start: #1a1c1e;
+            --bg-gradient-end: #22282a;
+            --frame-bg: rgba(32, 36, 38, 0.8);
+            --text-color: #e0e0e0;
+            --title-color: #a8c5a3;
+            --chat-bg: rgba(32, 36, 38, 0.9);
+            --chat-input-border: #4a5a47;
+            --button-bg: #4a5a47;
+            --button-text: #e0e0e0;
+            --canvas-gradient-start: #2a3432;
+            --canvas-gradient-end: #1f2826;
+            --canvas-border: #4a5a47;
+            --footer-color: #a8c5a3;
+        }
+
         /* Base layout */
         * {
             box-sizing: border-box;
@@ -20,42 +54,66 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(to bottom, #f7f5f2 0%, #e9efe5 100%);
+            background: linear-gradient(to bottom, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
             font-family: "Marcellus", serif;
-            color: #3d3d3d;
+            color: var(--text-color);
+            transition: all 0.3s ease;
         }
 
         .garden-frame {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: #ffffffcc;
+            background: var(--frame-bg);
             backdrop-filter: blur(10px);
             padding: 2rem 2.5rem;
             border-radius: 24px;
             box-shadow:
                 0 8px 20px rgba(0, 0, 0, 0.1),
-                inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+                inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
         }
 
         .title {
             font-size: 1.5rem;
             letter-spacing: 1px;
             margin-bottom: 1.5rem;
-            color: #2f3e29;
+            color: var(--title-color);
             text-align: center;
+            transition: color 0.3s ease;
         }
 
         canvas {
-            background: linear-gradient(to bottom, #e3f1e0, #cfe3cb);
+            background: linear-gradient(to bottom, var(--canvas-gradient-start), var(--canvas-gradient-end));
             border-radius: 16px;
-            border: 1px solid #b5cbb2;
+            border: 1px solid var(--canvas-border);
             width: 800px;
             height: 400px;
             box-shadow:
                 0 10px 25px rgba(0, 0, 0, 0.1),
                 0 0 30px rgba(190, 220, 180, 0.5);
-            transition: box-shadow 0.3s ease;
+            transition: all 0.3s ease;
         }
 
         canvas:focus {
@@ -69,8 +127,9 @@
         .footer {
             margin-top: 1rem;
             font-size: 0.8rem;
-            color: #5e7058;
+            color: var(--footer-color);
             opacity: 0.8;
+            transition: color 0.3s ease;
         }
 
         body::before {
@@ -96,6 +155,7 @@
 
 <body>
     <div class="garden-frame">
+        <button class="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
         <div class="title">Virtual Rose Garden</div>
         <canvas id="game" width="800" height="400" tabindex="1"></canvas>
         <div class="footer">Use the arrow keys to move — space to jump</div>
@@ -106,18 +166,19 @@
             position: absolute;
             right: -350px;
             top: 80px;
-            background: rgba(255, 255, 255, 0.9);
+            background: var(--chat-bg);
             border-radius: 12px;
             padding: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             font-family: 'Marcellus', serif;
+            transition: all 0.3s ease;
         ">
             <div id="chat-messages" style="
                 height: 200px;
                 overflow-y: auto;
                 margin-bottom: 10px;
                 padding: 10px;
-                background: rgba(255, 255, 255, 0.8);
+                background: var(--frame-bg);
                 border-radius: 8px;
             "></div>
             <div style="display: flex; gap: 8px;">
@@ -186,6 +247,33 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const button = document.querySelector('.theme-toggle');
+            const isDark = body.getAttribute('data-theme') === 'dark';
+
+            if (isDark) {
+                body.removeAttribute('data-theme');
+                button.innerHTML = '🌙 Dark Mode';
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                button.innerHTML = '☀️ Light Mode';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Initialize theme from localStorage
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            const button = document.querySelector('.theme-toggle');
+            if (savedTheme === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+                button.innerHTML = '☀️ Light Mode';
+            }
+        });
+    </script>
 </body>
 
 </html>
