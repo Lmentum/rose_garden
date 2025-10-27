@@ -1,0 +1,15 @@
+services:
+  rose-garden:
+    image: lmentum/rose_garden:latest
+    container_name: rose-garden
+    environment:
+      NODE_ENV: production
+    ports:
+      - 3000:3000
+  
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
