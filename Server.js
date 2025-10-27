@@ -11,52 +11,26 @@ app.use(express.static("public"));
 const players = {}; // store player states
 const chatHistory = []; // store chat messages
 
+const ball = {
+    x: 400,
+    y: 100,
+    vx: 0,
+    vy: 0,
+    radius: 19
+};
+
 // Function to add message to history
 function addToHistory(message) {
-    // Only add public messages to history
-    if (message.type !== 'dm') {
-        chatHistory.push(message);
-        // Keep only the last 100 messages
-        if (chatHistory.length > 100) {
-            chatHistory.shift();
-        }
-    }
-}
-
-// Function to find socket ID by username
-function findPlayerByUsername(username) {
-    for (const [socketId, player] of Object.entries(players)) {
-        if (player.username.toLowerCase() === username.toLowerCase()) {
-            return { socketId, player };
-        }
-    }
-    return null;
-}
-
-// Function to parse DM command
-function parseDM(message) {
-    // Check for /dm username message or @username message format
-    const dmRegex = /^(?:\/dm\s+|@)(\S+)\s+(.+)$/i;
-    const match = message.match(dmRegex);
-    if (match) {
-        return {
-            targetUsername: match[1],
-            message: match[2]
-        };
-    }
-    return null;
+    chatHistory.push(message);
+    if (chatHistory.length > 100) chatHistory.shift();
 }
 
 io.on("connection", socket => {
     console.log("Player connected:", socket.id);
 
     socket.on("join", username => {
-        // Check if this socket already has a player
-        if (players[socket.id]) {
-            return;
-        }
+        if (players[socket.id]) return;
 
-        // Initialize player with username
         players[socket.id] = {
             x: 100 + Math.random() * 400,
             y: 300,
@@ -67,10 +41,8 @@ io.on("connection", socket => {
         };
         console.log(`Player ${username} joined the game`);
 
-        // Send chat history to the new player
         socket.emit("chatHistory", chatHistory);
 
-        // Create and store join message
         const joinMessage = {
             type: "join",
             username: username,
@@ -83,88 +55,29 @@ io.on("connection", socket => {
     });
 
     socket.on("input", input => {
-        // Only handle input if the player exists
-        if (players[socket.id]) {
-            handleInput(players[socket.id], input);
-        }
+        if (players[socket.id]) handleInput(players[socket.id], input);
     });
 
     socket.on("chat", message => {
         if (players[socket.id]) {
-            const dmData = parseDM(message);
+            players[socket.id].currentChat = {
+                message: message,
+                timestamp: Date.now()
+            };
 
-            if (dmData) {
-                // Handle DM
-                const target = findPlayerByUsername(dmData.targetUsername);
+            const chatMessage = {
+                type: "message",
+                username: players[socket.id].username,
+                message: message,
+                color: players[socket.id].color,
+                timestamp: Date.now()
+            };
+            addToHistory(chatMessage);
+            io.emit("chat", chatMessage);
 
-                if (target) {
-                    // Create DM message
-                    const dmMessage = {
-                        type: "dm",
-                        username: players[socket.id].username,
-                        message: dmData.message,
-                        color: players[socket.id].color,
-                        timestamp: Date.now(),
-                        isWhisper: true
-                    };
-
-                    // Send to sender and recipient only
-                    socket.emit("chat", {
-                        ...dmMessage,
-                        isDmSent: true,
-                        to: target.player.username
-                    });
-                    io.to(target.socketId).emit("chat", {
-                        ...dmMessage,
-                        isDmReceived: true,
-                        from: players[socket.id].username
-                    });
-
-                    // Show floating message only to recipient
-                    target.player.currentChat = {
-                        message: `[DM] ${dmData.message}`,
-                        timestamp: Date.now()
-                    };
-
-                    // Clear recipient's floating message after 5 seconds
-                    setTimeout(() => {
-                        if (players[target.socketId]) {
-                            players[target.socketId].currentChat = null;
-                        }
-                    }, 5000);
-                } else {
-                    // Notify sender that user wasn't found
-                    socket.emit("chat", {
-                        type: "system",
-                        message: `Player "${dmData.targetUsername}" not found`,
-                        color: "#ff0000",
-                        timestamp: Date.now()
-                    });
-                }
-            } else {
-                // Regular public chat message
-                players[socket.id].currentChat = {
-                    message: message,
-                    timestamp: Date.now()
-                };
-
-                const chatMessage = {
-                    type: "message",
-                    username: players[socket.id].username,
-                    message: message,
-                    color: players[socket.id].color,
-                    timestamp: Date.now()
-                };
-                addToHistory(chatMessage);
-                io.emit("chat", chatMessage);
-
-                // Clear the message after 5 seconds
-                setTimeout(() => {
-                    if (players[socket.id]) {
-                        players[socket.id].currentChat = null;
-                    }
-                }, 5000);
-            }
+            setTimeout(() => {
+                if (players[socket.id]) players[socket.id].currentChat = null;
+            }, 5000);
         }
     });
 
@@ -173,7 +86,6 @@ io.on("connection", socket => {
             const username = players[socket.id].username;
             console.log("Player disconnected:", socket.id);
 
-            // Send leave message before removing player
             const leaveMessage = {
                 type: "leave",
                 username: username,
@@ -189,11 +101,11 @@ io.on("connection", socket => {
     });
 });
 
-// Physics + broadcast loop
+// Game loop
 setInterval(() => {
     updateGame();
-    io.emit("state", players);
-}, 30);
+    io.emit("state", { players, ball });
+}, 1000 / 120);
 
 function handleInput(player, input) {
     const speed = 3;
@@ -205,24 +117,75 @@ function handleInput(player, input) {
 }
 
 function updateGame() {
+    // Update players
     for (let id in players) {
         const p = players[id];
-        if (!p) continue; // Skip if player is undefined
+        if (!p) continue;
 
-        // basic physics
-        p.vy += 0.5; // gravity
+        p.vy += 0.5;
         p.x += p.vx;
         p.y += p.vy;
+
         if (p.y > 300) {
             p.y = 300;
             p.vy = 0;
         }
 
-        // Keep players within bounds
         if (p.x < 0) p.x = 0;
-        if (p.x > 770) p.x = 770; // 800 - 30 (orb width)
+        if (p.x > 770) p.x = 770;
+    }
+
+    // Update beach ball
+    const gravity = 0.12;
+    const airResistance = 0.95;
+    const groundFriction = 0.97;
+    const bounceDecay = 0.45;
+
+    ball.vy += gravity;
+    ball.vx *= airResistance;
+    ball.vy *= airResistance;
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Ground
+    if (ball.y + ball.radius > 350) {
+        ball.y = 350 - ball.radius;
+        ball.vy = -ball.vy * bounceDecay;
+        ball.vx *= groundFriction;
+    }
+
+    // Walls
+    if (ball.x - ball.radius < 0) {
+        ball.x = ball.radius;
+        ball.vx = -ball.vx * bounceDecay;
+    }
+    if (ball.x + ball.radius > 800) {
+        ball.x = 800 - ball.radius;
+        ball.vx = -ball.vx * bounceDecay;
+    }
+
+    // Collisions with players
+    for (let id in players) {
+        const p = players[id];
+        const dx = ball.x - (p.x + 15);
+        const dy = ball.y - (p.y + 15);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < ball.radius + 20) {
+            const angle = Math.atan2(dy, dx);
+            const playerSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            const pushForce = 2.7;
+
+            ball.vx += (p.vx * 0.5 + Math.cos(angle) * playerSpeed) * pushForce;
+            ball.vy += (p.vy * 0.5 + Math.sin(angle) * playerSpeed - 0.8) * pushForce;
+
+            const pushOut = (ball.radius + 20) - distance;
+            ball.x += Math.cos(angle) * pushOut;
+            ball.y += Math.sin(angle) * pushOut;
+        }
     }
 }
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
