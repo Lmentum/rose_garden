@@ -113,7 +113,7 @@ function handleInput(player, input) {
     else if (input.right) player.vx = speed;
     else player.vx = 0;
 
-    if (input.jump && player.y >= 300) player.vy = -10;
+    if (input.jump && player.y >= 300) player.vy = -8;
 }
 
 function updateGame() {
