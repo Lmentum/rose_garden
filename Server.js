@@ -105,7 +105,7 @@ io.on("connection", socket => {
 setInterval(() => {
     updateGame();
     io.emit("state", { players, ball });
-}, 1000 / 70);
+}, 1000 / 60);
 
 function handleInput(player, input) {
     const speed = 3;
