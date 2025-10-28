@@ -8,18 +8,17 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-const players = {}; // store player states
-const chatHistory = []; // store chat messages
+const players = {};
+const chatHistory = [];
 
 const ball = {
     x: 400,
     y: 100,
     vx: 0,
     vy: 0,
-    radius: 19
+    radius: 15
 };
 
-// Function to add message to history
 function addToHistory(message) {
     chatHistory.push(message);
     if (chatHistory.length > 100) chatHistory.shift();
@@ -39,7 +38,7 @@ io.on("connection", socket => {
             color: "#" + Math.floor(Math.random() * 16777215).toString(16),
             username: username
         };
-        console.log(`Player ${username} joined the game`);
+        console.log(`Player ${username} joined the garden`);
 
         socket.emit("chatHistory", chatHistory);
 
@@ -101,7 +100,6 @@ io.on("connection", socket => {
     });
 });
 
-// Game loop
 setInterval(() => {
     updateGame();
     io.emit("state", { players, ball });
@@ -134,8 +132,6 @@ function updateGame() {
         if (p.x < 0) p.x = 0;
         if (p.x > 770) p.x = 770;
     }
-
-    // Update beach ball
     const gravity = 0.12;
     const airResistance = 0.95;
     const groundFriction = 0.97;
@@ -147,14 +143,12 @@ function updateGame() {
     ball.x += ball.vx;
     ball.y += ball.vy;
 
-    // Ground
     if (ball.y + ball.radius > 350) {
         ball.y = 350 - ball.radius;
         ball.vy = -ball.vy * bounceDecay;
         ball.vx *= groundFriction;
     }
 
-    // Walls
     if (ball.x - ball.radius < 0) {
         ball.x = ball.radius;
         ball.vx = -ball.vx * bounceDecay;
@@ -164,14 +158,13 @@ function updateGame() {
         ball.vx = -ball.vx * bounceDecay;
     }
 
-    // Collisions with players
     for (let id in players) {
         const p = players[id];
         const dx = ball.x - (p.x + 15);
         const dy = ball.y - (p.y + 15);
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < ball.radius + 20) {
+        if (distance < ball.radius + 15) {
             const angle = Math.atan2(dy, dx);
             const playerSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
             const pushForce = 2.7;
@@ -179,7 +172,7 @@ function updateGame() {
             ball.vx += (p.vx * 0.5 + Math.cos(angle) * playerSpeed) * pushForce;
             ball.vy += (p.vy * 0.5 + Math.sin(angle) * playerSpeed - 0.8) * pushForce;
 
-            const pushOut = (ball.radius + 20) - distance;
+            const pushOut = (ball.radius + 15) - distance;
             ball.x += Math.cos(angle) * pushOut;
             ball.y += Math.sin(angle) * pushOut;
         }
