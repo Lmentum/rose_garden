@@ -160,11 +160,11 @@ function updateGame() {
 
     for (let id in players) {
         const p = players[id];
-        const dx = ball.x - (p.x + 15);
-        const dy = ball.y - (p.y + 15);
+        const dx = ball.x - (p.x + 30);
+        const dy = ball.y - (p.y + 30);
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < ball.radius + 15) {
+        if (distance < ball.radius + 20) {
             const angle = Math.atan2(dy, dx);
             const playerSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
             const pushForce = 2.7;
@@ -172,7 +172,7 @@ function updateGame() {
             ball.vx += (p.vx * 0.5 + Math.cos(angle) * playerSpeed) * pushForce;
             ball.vy += (p.vy * 0.5 + Math.sin(angle) * playerSpeed - 0.8) * pushForce;
 
-            const pushOut = (ball.radius + 15) - distance;
+            const pushOut = (ball.radius + 20) - distance;
             ball.x += Math.cos(angle) * pushOut;
             ball.y += Math.sin(angle) * pushOut;
         }
