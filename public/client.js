@@ -4,11 +4,28 @@ const ctx = canvas.getContext("2d");
 
 function createRosePatch(baseX, baseY, count) {
     const roses = [];
+    const roseColors = [
+        { color: '#cc3333', weight: 70 },
+        { color: '#ff69b4', weight: 20 },
+        { color: '#ffd700', weight: 10 }
+    ];
+
     for (let i = 0; i < count; i++) {
         const randomX = baseX + (Math.random() * 60 - 30);
         const randomY = baseY + (Math.random() * 4 - 2);
         const randomScale = 0.25 + (Math.random() * 0.1);
-        roses.push({ x: randomX, y: randomY, scale: randomScale });
+        const rand = Math.random() * 100;
+        let chosenColor = roseColors[0].color;
+        let cumulative = 0;
+        for (const colorOption of roseColors) {
+            cumulative += colorOption.weight;
+            if (rand < cumulative) {
+                chosenColor = colorOption.color;
+                break;
+            }
+        }
+
+        roses.push({ x: randomX, y: randomY, scale: randomScale, color: chosenColor });
     }
     return roses;
 }
@@ -322,17 +339,16 @@ function render() {
         "     ||"
     ];
 
-    function drawRose(x, y, scale) {
+    function drawRose(x, y, scale, color) {
         ctx.save();
         ctx.translate(x, y + 339);
         ctx.scale(scale, scale);
 
         ctx.font = '12px monospace';
-        ctx.fillStyle = '#cc3333';
 
         smallRoseArt.forEach((line, index) => {
             if (index < 3) {
-                ctx.fillStyle = '#cc3333';
+                ctx.fillStyle = color; // Use the rose's color
             } else {
                 ctx.fillStyle = '#2d5a27';
             }
@@ -343,7 +359,7 @@ function render() {
     }
 
     roses.forEach(rose => {
-        drawRose(rose.x, rose.y, rose.scale);
+        drawRose(rose.x, rose.y, rose.scale, rose.color);
     });
 
     const beachBall = [
