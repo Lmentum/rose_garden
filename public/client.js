@@ -89,7 +89,95 @@ function hexToRgb(hex) {
     ] : [0, 0, 0];
 }
 
-let players = {};
+const RENDER_DELAY = 100;
+const stateBuffer = [];
+let myPlayerId = null;
+
+let displayPlayers = {};
+let displayBall = { x: 400, y: 100, radius: 20 };
+
+function lerp(start, end, t) {
+    return start + (end - start) * t;
+}
+
+socket.on("state", state => {
+    stateBuffer.push({
+        timestamp: Date.now(),
+        players: JSON.parse(JSON.stringify(state.players)),
+        ball: JSON.parse(JSON.stringify(state.ball))
+    });
+
+    if (stateBuffer.length > 60) {
+        stateBuffer.shift();
+    }
+});
+
+function interpolateState() {
+    const now = Date.now();
+    const renderTime = now - RENDER_DELAY;
+
+    let before = null;
+    let after = null;
+
+    for (let i = 0; i < stateBuffer.length - 1; i++) {
+        if (stateBuffer[i].timestamp <= renderTime && stateBuffer[i + 1].timestamp >= renderTime) {
+            before = stateBuffer[i];
+            after = stateBuffer[i + 1];
+            break;
+        }
+    }
+
+    if (!before && !after) {
+        if (stateBuffer.length > 0) {
+            const latest = stateBuffer[stateBuffer.length - 1];
+            displayPlayers = JSON.parse(JSON.stringify(latest.players));
+            displayBall = JSON.parse(JSON.stringify(latest.ball));
+        }
+        return;
+    }
+
+    if (before && !after) {
+        displayPlayers = JSON.parse(JSON.stringify(before.players));
+        displayBall = JSON.parse(JSON.stringify(before.ball));
+        return;
+    }
+
+    const totalTime = after.timestamp - before.timestamp;
+    const passedTime = renderTime - before.timestamp;
+    const t = totalTime > 0 ? passedTime / totalTime : 0;
+
+    displayPlayers = {};
+    for (let id in after.players) {
+        if (before.players[id]) {
+            displayPlayers[id] = {
+                x: lerp(before.players[id].x, after.players[id].x, t),
+                y: lerp(before.players[id].y, after.players[id].y, t),
+                vx: after.players[id].vx,
+                vy: after.players[id].vy,
+                color: after.players[id].color,
+                username: after.players[id].username,
+                currentChat: after.players[id].currentChat
+            };
+        } else {
+            displayPlayers[id] = JSON.parse(JSON.stringify(after.players[id]));
+        }
+    }
+
+    if (before.ball && after.ball) {
+        displayBall = {
+            x: lerp(before.ball.x, after.ball.x, t),
+            y: lerp(before.ball.y, after.ball.y, t),
+            vx: after.ball.vx,
+            vy: after.ball.vy,
+            radius: after.ball.radius
+        };
+    }
+
+    while (stateBuffer.length > 0 && stateBuffer[0].timestamp < renderTime - 1000) {
+        stateBuffer.shift();
+    }
+}
+
 let input = { left: false, right: false, jump: false };
 let time = 0;
 
@@ -119,6 +207,10 @@ function joinGame() {
         socket.emit('join', username);
     }
 }
+
+socket.on('connect', () => {
+    myPlayerId = socket.id;
+});
 
 document.getElementById('username-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
@@ -168,11 +260,6 @@ document.addEventListener("keyup", e => {
     }
 });
 
-socket.on("state", state => {
-    players = state.players;
-    Object.assign(ball, state.ball);
-});
-
 function sendMessage() {
     const chatInput = document.getElementById('chat-input');
     const message = chatInput.value.trim();
@@ -217,6 +304,8 @@ socket.on('chatHistory', history => {
 });
 
 function render() {
+    interpolateState();
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -264,8 +353,8 @@ function render() {
     ];
 
     ctx.save();
-    ctx.translate(ball.x, ball.y);
-    const rotation = Math.atan2(ball.vy, ball.vx) * 0.05;
+    ctx.translate(displayBall.x, displayBall.y);
+    const rotation = Math.atan2(displayBall.vy, displayBall.vx) * 0.05;
     ctx.rotate(rotation);
 
     beachBall.forEach((line, index) => {
@@ -335,8 +424,8 @@ function render() {
 
     time += 0.05;
 
-    for (let id in players) {
-        const p = players[id];
+    for (let id in displayPlayers) {
+        const p = displayPlayers[id];
 
         const swayOffset = (Math.abs(p.vx) > 0 && p.y >= 300) ? Math.sin(time * 2) * 5 : 0;
         const displayY = p.y + swayOffset;
