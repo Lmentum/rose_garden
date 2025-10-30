@@ -5,7 +5,9 @@
     <meta charset="UTF-8" />
     <title>Virtual Rose Garden</title>
     <link rel="icon" type="image/png" href="images/pngtree-blooming-red-rose-pixel-art-png-image_6106157.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
 
     <link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet" />
 
@@ -44,11 +46,21 @@
 
         * {
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            touch-action: manipulation;
         }
 
         body {
-            margin: 0;
-            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -71,6 +83,7 @@
                 inset 0 0 0 1px rgba(255, 255, 255, 0.1);
             transition: all 0.3s ease;
             position: relative;
+            max-width: 95vw;
         }
 
         .theme-toggle {
@@ -86,6 +99,7 @@
             font-family: inherit;
             font-size: 0.9rem;
             transition: all 0.3s ease;
+            z-index: 10;
         }
 
         .theme-toggle:hover {
@@ -106,12 +120,13 @@
             background: linear-gradient(to bottom, var(--canvas-gradient-start), var(--canvas-gradient-end));
             border-radius: 16px;
             border: 1px solid var(--canvas-border);
-            width: 800px;
-            height: 400px;
+            max-width: 100%;
+            height: auto;
             box-shadow:
                 0 10px 25px rgba(0, 0, 0, 0.1),
                 0 0 30px rgba(190, 220, 180, 0.5);
             transition: all 0.3s ease;
+            display: block;
         }
 
         canvas:focus {
@@ -127,23 +142,171 @@
             color: var(--footer-color);
             opacity: 0.8;
             transition: color 0.3s ease;
+            text-align: center;
         }
 
-        body::before {
+        .chat-container {
+            width: 300px;
+            position: absolute;
+            right: -350px;
+            top: 80px;
+            background: var(--chat-bg);
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-family: 'Marcellus', serif;
+            transition: all 0.3s ease;
+        }
+
+        #chat-messages {
+            height: 200px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: var(--frame-bg);
+            border-radius: 8px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 8px;
+        }
+
+        #chat-input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid var(--chat-input-border);
+            border-radius: 6px;
+            font-family: inherit;
+            background: var(--chat-bg);
+            color: var(--text-color);
+        }
+
+        .send-button {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        #username-prompt {
+            position: fixed;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
         }
 
-        body::after {
-            bottom: 0;
-            right: 0;
-            background: radial-gradient(circle at bottom right, #c5e1c2 0%, transparent 70%);
+        .username-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            font-family: 'Marcellus', serif;
+            max-width: 90vw;
+        }
+
+        .username-box h2 {
+            margin-top: 0;
+            color: #2f3e29;
+        }
+
+        #username-input {
+            padding: 0.5rem;
+            font-size: 1rem;
+            margin: 1rem 0;
+            border: 1px solid #b5cbb2;
+            border-radius: 0.5rem;
+            font-family: inherit;
+            width: 100%;
+            max-width: 250px;
+        }
+
+        .join-button {
+            background: #2f3e29;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            font-family: inherit;
         }
 
         @media (max-width: 900px) {
-            canvas {
-                width: 90vw;
-                height: calc(90vw / 2);
+            .garden-frame {
+                padding: 1rem;
+                border-radius: 16px;
+            }
+
+            .title {
+                font-size: 1.2rem;
+                margin-bottom: 1rem;
+            }
+
+            .theme-toggle {
+                top: 0.5rem;
+                right: 0.5rem;
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+
+            .footer {
+                font-size: 0.7rem;
+                margin-top: 0.5rem;
+            }
+
+            .chat-container {
+                position: fixed;
+                bottom: 0;
+                right: 0;
+                left: 0;
+                top: auto;
+                width: 100%;
+                border-radius: 12px 12px 0 0;
+                max-height: 40vh;
+            }
+
+            #chat-messages {
+                height: 150px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .garden-frame {
+                padding: 0.75rem;
+            }
+
+            .title {
+                font-size: 1rem;
+            }
+
+            .footer {
+                font-size: 0.65rem;
+            }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            .garden-frame {
+                padding: 0.5rem;
+            }
+
+            .title {
+                font-size: 0.9rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .footer {
+                margin-top: 0.25rem;
+                font-size: 0.6rem;
             }
         }
     </style>
@@ -156,86 +319,21 @@
         <canvas id="game" width="800" height="400" tabindex="1"></canvas>
         <div class="footer">Use the arrow keys or WASD to move — space to jump</div>
 
-        <div class="chat-container" style="
-            width: 300px;
-            position: absolute;
-            right: -350px;
-            top: 80px;
-            background: var(--chat-bg);
-            border-radius: 12px;
-            padding: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            font-family: 'Marcellus', serif;
-            transition: all 0.3s ease;
-        ">
-            <div id="chat-messages" style="
-                height: 200px;
-                overflow-y: auto;
-                margin-bottom: 10px;
-                padding: 10px;
-                background: var(--frame-bg);
-                border-radius: 8px;
-            "></div>
-            <div style="display: flex; gap: 8px;">
-                <input type="text" id="chat-input" placeholder="Type a message..." style="
-                    flex-grow: 1;
-                    padding: 8px;
-                    border: 1px solid #b5cbb2;
-                    border-radius: 6px;
-                    font-family: inherit;
-                ">
-                <button onclick="sendMessage()" style="
-                    background: #2f3e29;
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-family: inherit;
-                ">Send</button>
+        <div class="chat-container">
+            <div id="chat-messages"></div>
+            <div class="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Type a message...">
+                <button class="send-button" onclick="sendMessage()">Send</button>
             </div>
         </div>
     </div>
 
-    <div id="username-prompt" style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    ">
-        <div style="
-            background: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            text-align: center;
-            font-family: 'Marcellus', serif;
-        ">
-            <h2 style="margin-top: 0; color: #2f3e29;">Enter Your Username</h2>
-            <input type="text" id="username-input" style="
-                padding: 0.5rem;
-                font-size: 1rem;
-                margin: 1rem 0;
-                border: 1px solid #b5cbb2;
-                border-radius: 0.5rem;
-                font-family: inherit;
-            " placeholder="Your name...">
+    <div id="username-prompt">
+        <div class="username-box">
+            <h2>Enter Your Username</h2>
+            <input type="text" id="username-input" placeholder="Your name...">
             <br>
-            <button onclick="joinGame()" style="
-                background: #2f3e29;
-                color: white;
-                border: none;
-                padding: 0.5rem 1.5rem;
-                border-radius: 0.5rem;
-                font-size: 1rem;
-                cursor: pointer;
-                font-family: inherit;
-            ">Join Garden</button>
+            <button class="join-button" onclick="joinGame()">Join Garden</button>
         </div>
     </div>
 
@@ -265,6 +363,15 @@
                 document.body.setAttribute('data-theme', 'dark');
                 button.innerHTML = '☀️ Light Mode';
             }
+
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', (e) => {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    e.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
         });
     </script>
 </body>
